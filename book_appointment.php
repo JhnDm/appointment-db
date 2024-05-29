@@ -19,55 +19,64 @@ if (!isset($_SESSION['username'])) {
     exit;
 }
 
+$messageSent = '';
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $userId = $_SESSION['user_id'];
-    $message = $_POST['message'];
+    $productName = $_POST['message'];
+    $appointmentDate = $_POST['appointment_date'];
+    $appointmentTime = $_POST['appointment_time'];
 
-    // Basic validation for the message input
-    if (empty($message)) {
-        echo "Please enter a message for the appointment.";
-        exit;
-    }
+    // Basic validation for the inputs
+    if (empty($productName)) {
+        $messageSent = "Please enter a message for the appointment.";
+    } elseif (empty($appointmentDate) || empty($appointmentTime)) {
+        $messageSent = "Please select both date and time for the appointment.";
+    } else {
+        // Fetch user details
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
 
-    // Fetch user details
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch();
+        if (!$user) {
+            $messageSent = "User not found.";
+        } else {
+            // Insert appointment details into the database
+            $stmt = $pdo->prepare("INSERT INTO appointments (user_id, product_name, appointment_date, appointment_time) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$userId, $productName, $appointmentDate, $appointmentTime]);
 
-    if (!$user) {
-        echo "User not found.";
-        exit;
-    }
+            // Send email confirmation
+            $to = $user['email'];
+            $subject = 'Appointment Confirmation';
+            $message = "Dear {$user['username']}, you chose {$productName}. The appointment is scheduled for {$appointmentDate} at {$appointmentTime}.";
 
-    $to = $user['email'];
-    $subject = 'Appointment Confirmation';
-    $message = "Dear {$user['username']}, " . $_POST['message'];
+            $mail = new PHPMailer(true);
 
-    $mail = new PHPMailer(true);
+            try {
+                //Server settings
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.gmail.com'; // Set the SMTP server to send through
+                $mail->SMTPAuth   = true;
+                $mail->Username   = $_ENV['SMTP_USERNAME']; // SMTP username
+                $mail->Password   = $_ENV['SMTP_PASSWORD']; // SMTP password (app password if using 2-Step Verification)
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port       = 587;
 
-    try {
-        //Server settings
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com'; // Set the SMTP server to send through
-        $mail->SMTPAuth   = true;
-        $mail->Username   = $_ENV['SMTP_USERNAME']; // SMTP username
-        $mail->Password   = $_ENV['SMTP_PASSWORD']; // SMTP password (app password if using 2-Step Verification)
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+                //Recipients
+                $mail->setFrom('JhnlynDm12@gmail.com', 'Customer Service');
+                $mail->addAddress($to, $user['username']);
 
-        //Recipients
-        $mail->setFrom('JhnlynDm12@gmail.com', 'Customer Service');
-        $mail->addAddress($to, $user['username']);
+                // Content
+                $mail->isHTML(true);
+                $mail->Subject = $subject;
+                $mail->Body    = $message;
 
-        // Content
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body    = $message;
-
-        $mail->send();
-        echo "Appointment booked successfully and email sent!";
-    } catch (Exception $e) {
-        echo "Error sending email: {$mail->ErrorInfo}";
+                $mail->send();
+                $messageSent = "Appointment booked successfully and email sent!";
+            } catch (Exception $e) {
+                $messageSent = "Error sending email: {$mail->ErrorInfo}";
+            }
+        }
     }
 }
 ?>
@@ -102,9 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             margin-bottom: 5px;
             font-weight: bold;
         }
-        textarea {
+        textarea, input[type="datetime-local"] {
             width: 100%;
-            height: 150px; /* Increased height */
             padding: 8px;
             margin-bottom: 15px;
             border: 1px solid #ccc;
@@ -136,16 +144,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .home-btn:hover {
             background-color: #7A378B; /* Darker purple on hover */
         }
+        .message {
+            margin-top: 20px;
+            font-weight: bold;
+            color:white;
+        }
     </style>
 </head>
 <body>
     <div>
         <form action="book_appointment.php" method="post">
-            <label for="message">Email Now:</label>
+            <label for="message">Product Name:</label>
             <textarea name="message" required></textarea>
+            <label for="appointment_date">Appointment Date:</label>
+            <input type="date" name="appointment_date" required>
+            <label for="appointment_time">Appointment Time:</label>
+            <input type="time" name="appointment_time" required>
             <input type="submit" value="Book Appointment">
         </form>
         <a href="home.php" class="home-btn">Back to Home</a>
+        <div class="message"><?php echo $messageSent; ?></div>
     </div>
 </body>
 </html>

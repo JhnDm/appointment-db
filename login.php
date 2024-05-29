@@ -3,7 +3,12 @@ require 'db.php';
 require 'functions.php';
 
 if (isset($_SESSION['username'])) {
-    header("Location: home.php");
+    // Check if the user is an admin
+    if (isAdmin($_SESSION['username'])) {
+        header("Location: admin_panel.php");
+    } else {
+        header("Location: home.php");
+    }
     exit;
 }
 
@@ -12,7 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = $_POST['password'];
 
     if (loginUser($username, $password)) {
-        header("Location: home.php");
+        // Check if the user is an admin
+        if (isAdmin($username)) {
+            header("Location: admin_panel.php");
+        } else {
+            header("Location: home.php");
+        }
         exit;
     } else {
         echo "Invalid username or password.";
