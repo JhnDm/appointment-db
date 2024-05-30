@@ -6,10 +6,8 @@ if (!isset($_SESSION['username']) || !isAdmin($_SESSION['username'])) {
     exit;
 }
 
-if (!isset($_SESSION['username'])) {
-    header("Location: login.php");
-    exit;
-}
+$errorMessage = "";
+$successMessage = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = $_POST['name'];
@@ -31,28 +29,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Move the uploaded file to the desired location
         $target_path = $uploads_dir . '/' . basename($image_name);
         if (move_uploaded_file($image_tmp, $target_path)) {
-            echo "Image uploaded successfully!";
+            $image_uploaded = true;
         } else {
-            echo "Error uploading image.";
+            $errorMessage = "Error uploading image.";
         }
     } else {
-        echo "Please select an image file.";
+        $errorMessage = "Please select an image file.";
     }
 
-    if (!empty($name) && !empty($price)) {
-        $conn = dbConnect();
-        $stmt = $conn->prepare("INSERT INTO products (name, description, price, image_url) VALUES (?, ?, ?, ?)");
-        $stmt->bindValue(1, $name, PDO::PARAM_STR);
-        $stmt->bindValue(2, $description, PDO::PARAM_STR);
-        $stmt->bindValue(3, $price, PDO::PARAM_STR); // Use PDO::PARAM_STR for decimal values
-        $stmt->bindValue(4, $target_path, PDO::PARAM_STR); // Add $target_path as image URL
-        if ($stmt->execute()) {
-            echo "Product added successfully!";
+    if (empty($errorMessage)) {
+        if (!empty($name) && !empty($price) && !empty($target_path)) {
+            $conn = dbConnect();
+            $stmt = $conn->prepare("INSERT INTO products (name, description, price, image_url) VALUES (?, ?, ?, ?)");
+            $stmt->bindValue(1, $name, PDO::PARAM_STR);
+            $stmt->bindValue(2, $description, PDO::PARAM_STR);
+            $stmt->bindValue(3, $price, PDO::PARAM_STR); // Use PDO::PARAM_STR for decimal values
+            $stmt->bindValue(4, $target_path, PDO::PARAM_STR); // Add $target_path as image URL
+            if ($stmt->execute()) {
+                $successMessage = "Product added successfully!";
+            } else {
+                $errorMessage = "Error: " . $stmt->errorInfo()[2];
+            }
         } else {
-            echo "Error: " . $stmt->errorInfo()[2];
+            $errorMessage = "Please fill in all required fields.";
         }
-    } else {
-        echo "Please fill in all required fields.";
     }
 }
 ?>
@@ -126,12 +126,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             text-align: center;
             margin-top: 10px;
         }
+
+        .error-message, .success-message {
+            text-align: center;
+            margin-bottom: 15px;
+            color: red;
+        }
+
+        .success-message {
+            color: green;
+        }
     </style>
 </head>
 <body>
 <div class="w3-main w3-content w3-padding" style="max-width:1200px; margin-top:100px">
     <div class="container">
         <h2>Add Product</h2>
+        <?php if (!empty($errorMessage)): ?>
+            <p class="error-message"><?php echo $errorMessage; ?></p>
+        <?php endif; ?>
+        <?php if (!empty($successMessage)): ?>
+            <p class="success-message"><?php echo $successMessage; ?></p>
+        <?php endif; ?>
         <form action="add_product.php" method="post" enctype="multipart/form-data"> <!-- Added enctype for file upload -->
             <label for="name">Product Name:</label>
             <input type="text" name="name" id="name" required>

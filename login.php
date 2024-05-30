@@ -2,6 +2,8 @@
 require 'db.php';
 require 'functions.php';
 
+$errorMessage = "";
+
 if (isset($_SESSION['username'])) {
     // Check if the user is an admin
     if (isAdmin($_SESSION['username'])) {
@@ -25,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         exit;
     } else {
-        echo "Invalid username or password.";
+        $errorMessage = "Invalid username or password.";
     }
 }
 ?>
@@ -52,9 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       padding: 20px;
       border-radius: 10px;
       max-width: 300px;
+      width: 100%;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
     .container.login h2 {
       text-align: center;
+      margin-bottom: 20px;
     }
     .container.login form {
       margin-top: 20px;
@@ -82,17 +87,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       width: 100%;
     }
     .container.login form input[type="submit"]:hover {
-      background-color: purple;
+      background-color: darkpurple;
     }
     .container.login p {
       text-align: center;
       margin-top: 15px;
+    }
+    .error-message {
+      color: red;
+      text-align: center;
+      margin-bottom: 15px;
     }
   </style>
 </head>
 <body>
   <div class="container login">
     <h2>Login</h2>
+    <?php if (!empty($errorMessage)): ?>
+      <p class="error-message"><?php echo $errorMessage; ?></p>
+    <?php endif; ?>
     <form action="login.php" method="post">
       <label for="username">Username:</label>
       <input type="text" name="username" id="username" required>
